@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Heatmap Visualization</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        #heatmap {
+            margin: 20px auto;
+            width: 80%;
+            height: 600px;
+
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="heatmap"></div>
+
+    <script>
+        fetch("assessment.json")
+            .then((response) => response.json())
+            .then((json) => createHeatmap(json));
+
+        function createHeatmap(data) {
+            const features = data.data[0].data.map((d) => d.label);
+            const featureScores = {};
+
+            features.forEach((feature) => {
+                featureScores[feature] = data.data.reduce((sum, console) => {
+                    const featureData = console.data.find((d) => d.label === feature);
+                    return sum + featureData.value;
+                }, 0);
+            });
+
+            const sortedFeatures = Object.entries(featureScores)
+                .sort(([, a], [, b]) => b - a)
+                .map(([feature]) => feature);
+
+            const matrix = [];
+            sortedFeatures.forEach((feature) => {
+                const consoleScores = data.data.map((console) => ({
+                    name: console.name,
+                    value: console.data.find((d) => d.label === feature).value,
+                }));
+
+                consoleScores.sort((a, b) => b.value - a.value);
+                matrix.push({
+                    feature,
+                    consoles: consoleScores,
+                });
+            });
+
+            const values = [];
+            const xLabels = [];
+            matrix.forEach((row) => {
+                values.push(row.consoles.map((c) => c.value));
+                xLabels.push(row.consoles.map((c) => c.name));
+            });
+
+            const heatmapData = [
+                {
+                    z: values.reverse(),
+                    x: xLabels[0],
+                    y: sortedFeatures.map((f) => f.replace(/_/g, " ")).reverse(),
+                    type: "heatmap",
+                    colorscale: [
+                        [0, "#ffffcc"],
+                        [0.25, "#ffeda0"],
+                        [0.5, "#ffcc33"],
+                        [0.75, "#ff9933"],
+                        [1, "#ff6600"],
+                    ],
+                    showscale: true,
+                    colorbar: {
+                        title: "Ratings",
+                        titleside: "right",
+                        tickvals: [1, 2, 3, 4, 5],
+                        ticktext: ["1.0", "2.0", "3.0", "4.0", "5.0"],
+                    },
+                },
+            ];
+
+            const layout = {
+                title: {
+                    text: "Gaming Console Features Comparison Heatmap",
+                    font: { size: 18 },
+                    xref: "paper",
+                    x: 0.5,
+                },
+                yaxis: {
+                    title: "Features",
+                    automargin: true,
+                },
+                xaxis: {
+                    title: "Gaming Consoles",
+                    automargin: true,
+                },
+                margin: {
+                    l: 150,
+                    r: 50,
+                    t: 100,
+                    b: 150,
+                },
+            };
+
+            Plotly.newPlot("heatmap", heatmapData, layout);
+        }
+    </script>
+</body>
+
+</html>
